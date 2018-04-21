@@ -1,6 +1,7 @@
 ﻿#pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define _CRT_SECURE_NO_WARNINGS
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #pragma comment(lib, "legacy_stdio_definitions")
 #pragma comment(lib, "crypt32")
@@ -28,11 +29,7 @@ WNDPROC DefaultEditWndProc;
 #define WINDOW_HEIGHT		500
 #define OKBUTTON_WIDTH		128
 #define MARGIN				10
-#define BUTTON_HEIGHT		28
 #define STATIC_WIDTH		128
-#define STATIC_HEIGHT		28
-#define EDIT_WIDTH			482
-#define EDIT_HEIGHT			28
 
 CHAR convtobase(const CHAR c)
 {
@@ -501,6 +498,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	static HWND hEdit1, hEdit2, hEdit3, hEdit4, hEdit5, hButton;
 	static HFONT hFont;
+	static DOUBLE dControlHeight = 32.0;
 	switch (msg)
 	{
 	case WM_CREATE:
@@ -509,42 +507,43 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			LOGFONT lf = { 0 };
 			GetThemeFont(hTheme, NULL, AW_HEADERAREA, 0, TMT_FONT, &lf);
 			hFont = CreateFontIndirectW(&lf);
+			dControlHeight = abs(lf.lfHeight * 1.8);
 			CloseThemeData(hTheme);
 		}
-		SendMessage(CreateWindowW(L"STATIC", L"宛先(&A):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, MARGIN + (STATIC_HEIGHT + MARGIN) * 0, STATIC_WIDTH, STATIC_HEIGHT, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
-		hEdit1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 0, EDIT_WIDTH, EDIT_HEIGHT, hWnd, (HMENU)100, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(CreateWindowW(L"STATIC", L"宛先(&A):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 0), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
+		hEdit1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 0), 512, (int)dControlHeight, hWnd, (HMENU)100, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit1, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit1, WM_SETFONT, (WPARAM)hFont, 0);
-		SendMessage(CreateWindowW(L"STATIC", L"差出人(&F):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, MARGIN + (STATIC_HEIGHT + MARGIN) * 1, STATIC_WIDTH, STATIC_HEIGHT, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
-		hEdit4 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 1, EDIT_WIDTH, EDIT_HEIGHT, hWnd, (HMENU)103, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(CreateWindowW(L"STATIC", L"差出人(&F):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 1), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
+		hEdit4 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 1), 512, (int)dControlHeight, hWnd, (HMENU)103, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit4, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit4, WM_SETFONT, (WPARAM)hFont, 0);
-		SendMessage(CreateWindowW(L"STATIC", L"パスワード(&P):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, MARGIN + (STATIC_HEIGHT + MARGIN) * 2, STATIC_WIDTH, STATIC_HEIGHT, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
-		hEdit5 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL | ES_PASSWORD, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 2, EDIT_WIDTH, EDIT_HEIGHT, hWnd, (HMENU)104, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(CreateWindowW(L"STATIC", L"パスワード(&P):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 2), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
+		hEdit5 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL | ES_PASSWORD, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 2), 512, (int)dControlHeight, hWnd, (HMENU)104, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit5, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit5, WM_SETFONT, (WPARAM)hFont, 0);	
-		SendMessage(CreateWindowW(L"STATIC", L"件名(&T):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, MARGIN + (STATIC_HEIGHT + MARGIN) * 3, STATIC_WIDTH, STATIC_HEIGHT, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
-		hEdit2 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 3, EDIT_WIDTH, EDIT_HEIGHT, hWnd, (HMENU)101, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(CreateWindowW(L"STATIC", L"件名(&T):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 3), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
+		hEdit2 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 3), 512, (int)dControlHeight, hWnd, (HMENU)101, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit2, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit2, WM_SETFONT, (WPARAM)hFont, 0);
-		SendMessage(CreateWindowW(L"STATIC", L"本文(&B):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, MARGIN + (STATIC_HEIGHT + MARGIN) * 4, STATIC_WIDTH, STATIC_HEIGHT, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
-		hEdit3 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 4, EDIT_WIDTH, EDIT_HEIGHT * 10, hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(CreateWindowW(L"STATIC", L"本文(&B):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 4), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
+		hEdit3 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), 512, (int)(dControlHeight * 10), hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit3, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit3, WM_SETFONT, (WPARAM)hFont, 0);
 		DefaultEditWndProc = (WNDPROC)SetWindowLongPtr(hEdit3, GWLP_WNDPROC, (LONG_PTR)EditProc1);
-		hButton = CreateWindowW(L"BUTTON", L"送信(F5)", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON, WINDOW_WIDTH - OKBUTTON_WIDTH - MARGIN, WINDOW_HEIGHT - BUTTON_HEIGHT - MARGIN, OKBUTTON_WIDTH, BUTTON_HEIGHT, hWnd, (HMENU)IDOK, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		hButton = CreateWindowW(L"BUTTON", L"送信(F5)", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON, WINDOW_WIDTH - OKBUTTON_WIDTH - MARGIN, (int)(WINDOW_HEIGHT - dControlHeight - MARGIN), OKBUTTON_WIDTH, (int)dControlHeight, hWnd, (HMENU)IDOK, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hButton, WM_SETFONT, (WPARAM)hFont, 0);
 		SendMessage(hEdit3, WM_PASTE, 0, 0);
 		SendMessage(hEdit3, EM_SETSEL, 0, -1);
 		SetFocus(hEdit3);
 		break;
 	case WM_SIZE:
-		MoveWindow(hEdit1, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 0, LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), EDIT_HEIGHT, TRUE);
-		MoveWindow(hEdit4, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 1, LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), EDIT_HEIGHT, TRUE);
-		MoveWindow(hEdit5, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 2, LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), EDIT_HEIGHT, TRUE);
-		MoveWindow(hEdit2, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 3, LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), EDIT_HEIGHT, TRUE);
-		MoveWindow(hEdit3, MARGIN * 2 + STATIC_WIDTH, MARGIN + (EDIT_HEIGHT + MARGIN) * 4, LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), HIWORD(lParam) - (MARGIN * 2 + (EDIT_HEIGHT + MARGIN) * 4), TRUE);
-		MoveWindow(hButton, MARGIN, HIWORD(lParam) - (EDIT_HEIGHT + MARGIN), OKBUTTON_WIDTH, BUTTON_HEIGHT, TRUE);
+		MoveWindow(hEdit1, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 0), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
+		MoveWindow(hEdit4, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 1), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
+		MoveWindow(hEdit5, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 2), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
+		MoveWindow(hEdit2, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 3), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
+		MoveWindow(hEdit3, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(HIWORD(lParam) - (MARGIN * 2 + (dControlHeight + MARGIN) * 4)), TRUE);
+		MoveWindow(hButton, MARGIN, (int)(HIWORD(lParam) - (dControlHeight + MARGIN)), OKBUTTON_WIDTH, (int)dControlHeight, TRUE);
 		break;
 	case WM_COMMAND:
 		if (LOWORD(wParam) == IDOK)
@@ -622,14 +621,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPreInst, LPSTR pCmdLine, int 
 {
 	MSG msg;
 	WNDCLASS wndclass = {
-		CS_HREDRAW | CS_VREDRAW,
+		0,
 		WndProc,
 		0,
 		DLGWINDOWEXTRA,
 		hInstance,
 		LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1)),
 		LoadCursor(0,IDC_ARROW),
-		(HBRUSH)(COLOR_WINDOW + 1),
+		0,
 		0,
 		szClassName
 	};
