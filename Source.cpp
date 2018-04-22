@@ -481,7 +481,7 @@ LRESULT CALLBACK EditProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					ReplaceAll(strClipboardText, L"\r\n", L"\n");
 					ReplaceAll(strClipboardText, L"\r", L"\n");
 					ReplaceAll(strClipboardText, L"\n", L"\r\n");
-					SetWindowTextW(hWnd, strClipboardText.c_str());
+					SendMessage(hWnd, EM_REPLACESEL, 0, (LPARAM)strClipboardText.c_str());
 				}
 				GlobalUnlock(hText);
 			}
