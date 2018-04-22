@@ -609,6 +609,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		DestroyWindow(hWnd);
 		break;
 	case WM_DESTROY:
+		DeleteObject(hFont);
 		PostQuitMessage(0);
 		break;
 	default:
