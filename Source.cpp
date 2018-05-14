@@ -31,6 +31,12 @@ WNDPROC DefaultEditWndProc;
 #define MARGIN				10
 #define STATIC_WIDTH		128
 
+struct AttachmentData
+{
+	TCHAR szFilePath[MAX_PATH];
+	HICON hIcon;
+};
+
 CHAR convtobase(const CHAR c)
 {
 	if (c <= 0x19)return c + 'A';
@@ -496,9 +502,10 @@ LRESULT CALLBACK EditProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	static HWND hEdit1, hEdit2, hEdit3, hEdit4, hEdit5, hButton;
+	static HWND hEdit1, hEdit2, hEdit3, hEdit4, hEdit5, hButton, hList;
 	static HFONT hFont;
 	static DOUBLE dControlHeight = 32.0;
+	static DWORD dwIconSize = 32;
 	switch (msg)
 	{
 	case WM_CREATE:
@@ -509,6 +516,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			hFont = CreateFontIndirectW(&lf);
 			dControlHeight = abs(lf.lfHeight * 1.8);
 			CloseThemeData(hTheme);
+			TCHAR szExePath[MAX_PATH];
+			GetModuleFileName(((LPCREATESTRUCT)lParam)->hInstance, szExePath, _countof(szExePath));
+			ICONINFO iconInfo = { 0 };
+			WORD nIcon = 0;
+			HICON hIcon = ExtractAssociatedIcon(((LPCREATESTRUCT)lParam)->hInstance, szExePath, &nIcon);
+			GetIconInfo(hIcon, &iconInfo);
+			if (iconInfo.hbmColor)
+			{
+				BITMAP bitmap;
+				GetObject(iconInfo.hbmMask, sizeof(bitmap), &bitmap);
+				dwIconSize = bitmap.bmWidth;
+			}
+			else
+			{
+				BITMAP bitmap;
+				GetObject(iconInfo.hbmMask, sizeof(bitmap), &bitmap);
+				dwIconSize = bitmap.bmWidth;
+			}
+			DestroyIcon(hIcon);
 		}
 		SendMessage(CreateWindowW(L"STATIC", L"宛先(&A):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 0), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0), WM_SETFONT, (WPARAM)hFont, 0);
 		hEdit1 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | ES_AUTOHSCROLL, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 0), 512, (int)dControlHeight, hWnd, (HMENU)100, ((LPCREATESTRUCT)lParam)->hInstance, 0);
@@ -531,18 +557,39 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		SendMessage(hEdit3, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit3, WM_SETFONT, (WPARAM)hFont, 0);
 		DefaultEditWndProc = (WNDPROC)SetWindowLongPtr(hEdit3, GWLP_WNDPROC, (LONG_PTR)EditProc1);
-		hButton = CreateWindowW(L"BUTTON", L"送信(F5)", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON, WINDOW_WIDTH - OKBUTTON_WIDTH - MARGIN, (int)(WINDOW_HEIGHT - dControlHeight - MARGIN), OKBUTTON_WIDTH, (int)dControlHeight, hWnd, (HMENU)IDOK, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		hList = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_OWNERDRAWFIXED | LBS_NOINTEGRALHEIGHT, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), 512, (int)(dControlHeight * 10), hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(hList, WM_SETFONT, (WPARAM)hFont, 0);
+		hButton = CreateWindowW(L"BUTTON", L"送信(F5)", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON, MARGIN, (int)(WINDOW_HEIGHT - (dControlHeight + MARGIN)), OKBUTTON_WIDTH, (int)dControlHeight, hWnd, (HMENU)IDOK, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hButton, WM_SETFONT, (WPARAM)hFont, 0);
 		SendMessage(hEdit3, WM_PASTE, 0, 0);
 		SendMessage(hEdit3, EM_SETSEL, 0, -1);
 		SetFocus(hEdit3);
+		DragAcceptFiles(hWnd, TRUE);
+		break;
+	case WM_DROPFILES:
+		{
+			const UINT nFileCount = DragQueryFile((HDROP)wParam, 0xFFFFFFFF, NULL, 0);
+			for (UINT i = 0; i < nFileCount; ++i)
+			{
+				TCHAR szFilePath[MAX_PATH];
+				DragQueryFile((HDROP)wParam, i, szFilePath, _countof(szFilePath));
+				AttachmentData * pData = new AttachmentData;
+				lstrcpy(pData->szFilePath, szFilePath);
+				WORD nIcon;
+				pData->hIcon = ExtractAssociatedIcon(GetModuleHandle(0), szFilePath, &nIcon);
+				const int nIndex = SendMessage(hList, LB_ADDSTRING, 0, (LPARAM)szFilePath);
+				SendMessage(hList, LB_SETITEMDATA, nIndex, (LPARAM)pData);
+			}
+			DragFinish((HDROP)wParam);
+		}
 		break;
 	case WM_SIZE:
 		MoveWindow(hEdit1, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 0), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
 		MoveWindow(hEdit4, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 1), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
 		MoveWindow(hEdit5, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 2), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
 		MoveWindow(hEdit2, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 3), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
-		MoveWindow(hEdit3, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(HIWORD(lParam) - (MARGIN * 2 + (dControlHeight + MARGIN) * 4)), TRUE);
+		MoveWindow(hEdit3, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(HIWORD(lParam) - (MARGIN * 2 + (dControlHeight + MARGIN) * 4) - (dControlHeight * 4 + MARGIN * 1)), TRUE);
+		MoveWindow(hList,  MARGIN * 2 + STATIC_WIDTH, (int)(HIWORD(lParam) - (dControlHeight * 4 + MARGIN)), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(dControlHeight * 4), TRUE);
 		MoveWindow(hButton, MARGIN, (int)(HIWORD(lParam) - (dControlHeight + MARGIN)), OKBUTTON_WIDTH, (int)dControlHeight, TRUE);
 		break;
 	case WM_COMMAND:
@@ -577,7 +624,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			LPWSTR lpszMessage = (LPWSTR)GlobalAlloc(0, (dwMessageLength + 1) * sizeof(WCHAR));
 			GetWindowTextW(hEdit3, lpszMessage, dwMessageLength + 1);
 			ShowWindow(hWnd, SW_HIDE);
-			if (!SendMail(lpszTo, lpszFrom, lpszPassword, lpszTitle, lpszMessage, 0, 0))
+			int nAttachmentFileCount = 0;
+			LPWSTR *ppszAttachmentFilePathList = 0;
+			{
+				nAttachmentFileCount = SendMessage(hList, LB_GETCOUNT, 0, 0);
+				ppszAttachmentFilePathList = (LPWSTR*)GlobalAlloc(0, sizeof(LPWSTR) * nAttachmentFileCount);
+				for (int i = 0; i < nAttachmentFileCount; ++i)
+				{
+					AttachmentData * pData = (AttachmentData *)SendMessage(hList, LB_GETITEMDATA, i, 0);
+					ppszAttachmentFilePathList[i] = pData->szFilePath;
+				}
+			}
+			if (!SendMail(lpszTo, lpszFrom, lpszPassword, lpszTitle, lpszMessage, ppszAttachmentFilePathList, nAttachmentFileCount))
 			{
 				ShowWindow(hWnd, SW_SHOW);
 				MessageBoxW(hWnd, L"送信に失敗しました。", 0, 0);
@@ -586,6 +644,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 			{
 				PostMessage(hWnd, WM_CLOSE, 0, 0);
 			}
+			GlobalFree(ppszAttachmentFilePathList);
 			GlobalFree(lpszTo);
 			GlobalFree(lpszFrom);
 			GlobalFree(lpszPassword);
@@ -608,7 +667,64 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_CLOSE:
 		DestroyWindow(hWnd);
 		break;
+	case WM_MEASUREITEM:
+		{
+			PMEASUREITEMSTRUCT pmis = (PMEASUREITEMSTRUCT)lParam;
+			pmis->itemHeight = (int)(dwIconSize + dControlHeight / 4.0);
+		}
+		break;
+	case WM_DRAWITEM:
+		{
+			PDRAWITEMSTRUCT pdis = (PDRAWITEMSTRUCT)lParam;
+			if (pdis->itemID == -1)
+			{
+				break;
+			}
+			switch (pdis->itemAction)
+			{
+			case ODA_SELECT:
+			case ODA_DRAWENTIRE:
+				{
+					AttachmentData * pData = (AttachmentData *)SendMessage(pdis->hwndItem, LB_GETITEMDATA, pdis->itemID, 0);
+					RECT rect;
+					rect.left = pdis->rcItem.left;
+					rect.top = pdis->rcItem.top;
+					rect.right = pdis->rcItem.right;
+					rect.bottom = pdis->rcItem.bottom;
+					if (pdis->itemState & ODS_SELECTED)
+					{
+						HBRUSH hBrush = CreateSolidBrush(GetSysColor(COLOR_HIGHLIGHT));
+						FillRect(pdis->hDC, &rect, (HBRUSH)hBrush);
+						DeleteObject(hBrush);
+						DrawFocusRect(pdis->hDC, &rect);
+						SetTextColor(pdis->hDC, GetSysColor(COLOR_HIGHLIGHTTEXT));
+					}
+					else
+					{
+						HBRUSH hBrush = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+						FillRect(pdis->hDC, &rect, (HBRUSH)hBrush);
+						DeleteObject(hBrush);
+						SetTextColor(pdis->hDC, GetSysColor(COLOR_WINDOWTEXT));
+					}
+					DrawIcon(pdis->hDC, (int)(pdis->rcItem.left + dControlHeight / 8.0), (int)(pdis->rcItem.top + dControlHeight / 8.0), pData->hIcon);
+					TextOut(pdis->hDC, (int)(pdis->rcItem.left + dwIconSize + dControlHeight / 4.0), (int)(pdis->rcItem.top + dControlHeight / 8.0), pData->szFilePath, lstrlen(pData->szFilePath));
+				}
+				break;
+			case ODA_FOCUS:
+				break;
+			}
+		}
+		break;
 	case WM_DESTROY:
+		{
+			const int nListItemMax = SendMessage(hList, LB_GETCOUNT, 0, 0);
+			for (int i = 0; i < nListItemMax; ++i)
+			{				
+				AttachmentData * pData = (AttachmentData *)SendMessage(hList, LB_GETITEMDATA, i, 0);
+				DestroyIcon(pData->hIcon);
+				delete pData;
+			}
+		}
 		DeleteObject(hFont);
 		PostQuitMessage(0);
 		break;
