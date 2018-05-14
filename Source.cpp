@@ -23,7 +23,8 @@
 #include "resource.h"
 
 TCHAR szClassName[] = TEXT("Window");
-WNDPROC DefaultEditWndProc;
+WNDPROC DefaultEditBoxWndProc;
+WNDPROC DefaultListBoxWndProc;
 
 #define WINDOW_WIDTH		640
 #define WINDOW_HEIGHT		500
@@ -471,7 +472,73 @@ void ReplaceAll(std::wstring& str, const std::wstring& from, const std::wstring&
 	}
 }
 
-LRESULT CALLBACK EditProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK ListBoxProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	switch (msg)
+	{
+	case WM_COMMAND:
+		if (LOWORD(wParam) == 1000)
+		{
+			int nSelectedItemsCount = (int)SendMessage(hWnd, LB_GETSELCOUNT, 0, 0);
+			int *pSelectedItems = new int[nSelectedItemsCount];
+			SendMessage(hWnd, LB_GETSELITEMS, nSelectedItemsCount, (LPARAM)pSelectedItems);
+			for (int i = nSelectedItemsCount - 1; i >= 0; i--)
+			{
+				AttachmentData * pData = (AttachmentData *)SendMessage(hWnd, LB_GETITEMDATA, pSelectedItems[i], 0);
+				DestroyIcon(pData->hIcon);
+				delete pData;
+				SendMessage(hWnd, LB_DELETESTRING, pSelectedItems[i], 0);
+			}
+			delete[] pSelectedItems;
+		}
+		break;
+	case WM_RBUTTONDOWN:
+		{
+			DWORD dwPos = GetMessagePos();
+			POINT pt = { LOWORD(dwPos), HIWORD(dwPos) };
+			ScreenToClient(hWnd, &pt);
+			// カーソル位置のインデックス値を求める
+			int nCursorIndex = (int)SendMessage(hWnd, LB_ITEMFROMPOINT, 0, MAKELPARAM(pt.x, pt.y));
+			if (nCursorIndex == LB_ERR) break;
+			// 選択されていたら何もしない
+			if (SendMessage(hWnd, LB_GETSEL, nCursorIndex, 0)) break;
+			// 選択されていない場合は、選択をすべて解除した後に
+			int nSelectedItemsCount = (int)SendMessage(hWnd, LB_GETSELCOUNT, 0, 0);
+			int *pSelectedItems = new int[nSelectedItemsCount];
+			SendMessage(hWnd, LB_GETSELITEMS, nSelectedItemsCount, (LPARAM)pSelectedItems);
+			for (int i =  0; i < nSelectedItemsCount; ++i)
+			{
+				SendMessage(hWnd, LB_SETSEL, FALSE, pSelectedItems[i]);
+			}
+			delete[] pSelectedItems;
+			// カーソル位置を選択
+			SendMessage(hWnd, LB_SETSEL, TRUE, nCursorIndex);
+		}
+		break;
+	case WM_KEYDOWN:
+		if (wParam == VK_DELETE)
+		{
+			PostMessage(hWnd, WM_COMMAND, 1000, 0);
+		}
+		break;
+	case WM_CONTEXTMENU:
+		{
+			int nSelectedItemsCount = (int)SendMessage(hWnd, LB_GETSELCOUNT, 0, 0);
+			HMENU hMenuPopup = CreatePopupMenu();
+			AppendMenu(hMenuPopup, MF_STRING | (nSelectedItemsCount == 0 ? MF_DISABLED : 0), 1000, (LPCTSTR)TEXT("削除(&D)\tDelete"));
+			DWORD dwPos = GetMessagePos();
+			POINT pt = { LOWORD(dwPos), HIWORD(dwPos) };
+			TrackPopupMenuEx(hMenuPopup, TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_NOANIMATION, pt.x, pt.y, hWnd, NULL);
+			DestroyMenu(hMenuPopup);
+		}
+		break;
+	default:
+		break;
+	}
+	return CallWindowProc(DefaultListBoxWndProc, hWnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK EditBoxProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	switch (msg)
 	{
@@ -497,12 +564,12 @@ LRESULT CALLBACK EditProc1(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	default:
 		break;
 	}
-	return CallWindowProc(DefaultEditWndProc, hWnd, msg, wParam, lParam);
+	return CallWindowProc(DefaultEditBoxWndProc, hWnd, msg, wParam, lParam);
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	static HWND hEdit1, hEdit2, hEdit3, hEdit4, hEdit5, hButton, hList;
+	static HWND hEdit1, hEdit2, hEdit3, hEdit4, hEdit5, hButton, hList, hStatic;
 	static HFONT hFont;
 	static DOUBLE dControlHeight = 32.0;
 	static DWORD dwIconSize = 32;
@@ -556,9 +623,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		hEdit3 = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | ES_AUTOVSCROLL | ES_MULTILINE | ES_WANTRETURN, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), 512, (int)(dControlHeight * 10), hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hEdit3, EM_LIMITTEXT, 0, 0);
 		SendMessage(hEdit3, WM_SETFONT, (WPARAM)hFont, 0);
-		DefaultEditWndProc = (WNDPROC)SetWindowLongPtr(hEdit3, GWLP_WNDPROC, (LONG_PTR)EditProc1);
-		hList = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_OWNERDRAWFIXED | LBS_NOINTEGRALHEIGHT, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), 512, (int)(dControlHeight * 10), hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		DefaultEditBoxWndProc = (WNDPROC)SetWindowLongPtr(hEdit3, GWLP_WNDPROC, (LONG_PTR)EditBoxProc1);
+		hStatic = CreateWindowW(L"STATIC", L"添付(&C):", WS_VISIBLE | WS_CHILD | SS_RIGHT, MARGIN, (int)(MARGIN + (dControlHeight + MARGIN) * 4), STATIC_WIDTH, (int)dControlHeight, hWnd, 0, ((LPCREATESTRUCT)lParam)->hInstance, 0);
+		SendMessage(hStatic, WM_SETFONT, (WPARAM)hFont, 0);
+		hList = CreateWindowExW(WS_EX_CLIENTEDGE, L"LISTBOX", 0, WS_VISIBLE | WS_CHILD | WS_TABSTOP | WS_VSCROLL | LBS_OWNERDRAWFIXED | LBS_NOINTEGRALHEIGHT | LBS_MULTIPLESEL | LBS_EXTENDEDSEL, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), 512, (int)(dControlHeight * 10), hWnd, (HMENU)102, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hList, WM_SETFONT, (WPARAM)hFont, 0);
+		DefaultListBoxWndProc = (WNDPROC)SetWindowLongPtr(hList, GWLP_WNDPROC, (LONG_PTR)ListBoxProc1);
 		hButton = CreateWindowW(L"BUTTON", L"送信(F5)", WS_VISIBLE | WS_CHILD | WS_TABSTOP | BS_DEFPUSHBUTTON, MARGIN, (int)(WINDOW_HEIGHT - (dControlHeight + MARGIN)), OKBUTTON_WIDTH, (int)dControlHeight, hWnd, (HMENU)IDOK, ((LPCREATESTRUCT)lParam)->hInstance, 0);
 		SendMessage(hButton, WM_SETFONT, (WPARAM)hFont, 0);
 		SendMessage(hEdit3, WM_PASTE, 0, 0);
@@ -589,7 +659,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		MoveWindow(hEdit5, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 2), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
 		MoveWindow(hEdit2, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 3), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)dControlHeight, TRUE);
 		MoveWindow(hEdit3, MARGIN * 2 + STATIC_WIDTH, (int)(MARGIN + (dControlHeight + MARGIN) * 4), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(HIWORD(lParam) - (MARGIN * 2 + (dControlHeight + MARGIN) * 4) - (dControlHeight * 4 + MARGIN * 1)), TRUE);
-		MoveWindow(hList,  MARGIN * 2 + STATIC_WIDTH, (int)(HIWORD(lParam) - (dControlHeight * 4 + MARGIN)), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(dControlHeight * 4), TRUE);
+		MoveWindow(hStatic, MARGIN, (int)(HIWORD(lParam) - (dControlHeight * 4 + MARGIN)), STATIC_WIDTH, (int)(dControlHeight), TRUE);
+		MoveWindow(hList, MARGIN * 2 + STATIC_WIDTH, (int)(HIWORD(lParam) - (dControlHeight * 4 + MARGIN)), LOWORD(lParam) - (MARGIN * 3 + STATIC_WIDTH), (int)(dControlHeight * 4), TRUE);
 		MoveWindow(hButton, MARGIN, (int)(HIWORD(lParam) - (dControlHeight + MARGIN)), OKBUTTON_WIDTH, (int)dControlHeight, TRUE);
 		break;
 	case WM_COMMAND:
